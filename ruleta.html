@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ruleta de la Suerte</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0a1e;
+    --surface: #1e1338;
+    --accent: #ff6b35;
+    --gold: #ffd700;
+    --text: #f0e6ff;
+    --dim: #8b7bb0;
+    --danger: #ff4757;
+    --success: #2ed573;
+    --border: rgba(255,215,0,0.18);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 60px;
+    background-image:
+      radial-gradient(ellipse at 15% 10%, #3a1a6e55 0%, transparent 55%),
+      radial-gradient(ellipse at 85% 85%, #1e0a3c55 0%, transparent 55%);
+  }
+
+  /* ── Header ── */
+  .header {
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', cursive;
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    letter-spacing: 0.12em;
+    background: linear-gradient(135deg, var(--gold) 0%, var(--accent) 60%, #ff8c42 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+
+  .subtitle {
+    color: var(--dim);
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── Wheel wrapper ── */
+  .wheel-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+
+  .pointer-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+    margin-bottom: -2px;
+  }
+
+  .pointer-arrow {
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 34px solid var(--gold);
+    filter: drop-shadow(0 3px 10px rgba(255,215,0,0.7));
+  }
+
+  .canvas-container {
+    position: relative;
+    line-height: 0;
+  }
+
+  #wheelCanvas {
+    border-radius: 50%;
+    display: block;
+    box-shadow:
+      0 0 0 4px rgba(255,215,0,0.15),
+      0 0 60px rgba(255,107,53,0.25),
+      0 0 120px rgba(255,215,0,0.08);
+  }
+
+  .center-pin {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fff 0%, var(--gold) 50%, var(--accent) 100%);
+    box-shadow: 0 0 12px rgba(255,215,0,0.9);
+    pointer-events: none;
+    z-index: 6;
+  }
+
+  /* ── Spin button ── */
+  #spinBtn {
+    margin-top: 22px;
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.7rem;
+    letter-spacing: 0.18em;
+    padding: 13px 64px;
+    background: linear-gradient(135deg, #ff6b35, #ff8c42);
+    color: #fff;
+    border: none;
+    border-radius: 60px;
+    cursor: pointer;
+    box-shadow:
+      0 4px 22px rgba(255,107,53,0.55),
+      inset 0 1px 0 rgba(255,255,255,0.25);
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #spinBtn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+    border-radius: inherit;
+  }
+
+  #spinBtn:hover:not(:disabled) {
+    transform: translateY(-3px) scale(1.04);
+    box-shadow: 0 10px 36px rgba(255,107,53,0.7), 0 0 0 2px rgba(255,215,0,0.45);
+  }
+
+  #spinBtn:active:not(:disabled) { transform: scale(0.97); }
+
+  #spinBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* ── Result ── */
+  #resultBanner {
+    margin-top: 14px;
+    min-height: 30px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-align: center;
+    color: var(--gold);
+    text-shadow: 0 0 20px rgba(255,215,0,0.55);
+    letter-spacing: 0.04em;
+    transition: opacity 0.3s;
+  }
+
+  /* ── Controls panel ── */
+  .controls-panel {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.035);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 22px 22px 18px;
+    backdrop-filter: blur(6px);
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .panel-title {
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+
+  .count-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .count-num {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.5rem;
+    color: var(--gold);
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    font-size: 1.3rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+  }
+
+  .icon-btn.add  { background: var(--success); color: #fff; }
+  .icon-btn.sub  { background: var(--danger);  color: #fff; }
+  .icon-btn:hover:not(:disabled) { transform: scale(1.12); }
+  .icon-btn:active:not(:disabled){ transform: scale(0.9);  }
+  .icon-btn:disabled { opacity: 0.28; cursor: not-allowed; transform: none; }
+
+  /* ── Slots list ── */
+  #slotsList {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    max-height: 340px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+
+  #slotsList::-webkit-scrollbar { width: 4px; }
+  #slotsList::-webkit-scrollbar-track { background: transparent; }
+  #slotsList::-webkit-scrollbar-thumb { background: rgba(255,215,0,0.2); border-radius: 2px; }
+
+  .slot-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    animation: rowIn 0.22s ease;
+  }
+
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+
+  .slot-num {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1.05rem;
+    min-width: 22px;
+    text-align: right;
+    color: var(--dim);
+  }
+
+  .color-dot {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.25);
+  }
+
+  .slot-input {
+    flex: 1;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 7px 13px;
+    color: var(--text);
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    outline: none;
+    transition: border-color 0.18s, background 0.18s;
+  }
+
+  .slot-input:focus {
+    border-color: var(--gold);
+    background: rgba(255,215,0,0.06);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🎰 Ruleta de la Suerte</h1>
+  <p class="subtitle">Configura · Gira · Descubre</p>
+</div>
+
+<div class="wheel-wrapper">
+  <div class="pointer-wrap">
+    <div class="pointer-arrow"></div>
+  </div>
+
+  <div class="canvas-container">
+    <canvas id="wheelCanvas" width="360" height="360"></canvas>
+    <div class="center-pin"></div>
+  </div>
+
+  <button id="spinBtn" onclick="spinWheel()">⚡ GIRAR</button>
+  <div id="resultBanner"></div>
+</div>
+
+<div class="controls-panel">
+  <div class="panel-header">
+    <span class="panel-title">Espacios en la ruleta</span>
+    <div class="count-controls">
+      <button class="icon-btn sub" id="subBtn" onclick="removeSlot()" title="Quitar espacio">−</button>
+      <span class="count-num" id="countNum">6</span>
+      <button class="icon-btn add" id="addBtn" onclick="addSlot()" title="Añadir espacio">+</button>
+    </div>
+  </div>
+
+  <div id="slotsList"></div>
+</div>
+
+<script>
+// ─── Palette ───────────────────────────────────────────────────────────────
+const COLORS = [
+  '#e74c3c','#f39c12','#8e44ad','#27ae60','#2980b9','#e67e22',
+  '#16a085','#d35400','#2ecc71','#9b59b6','#e91e63','#00bcd4',
+  '#ff6b35','#ffd700','#4caf50','#f44336','#3f51b5','#009688',
+  '#ff5722','#607d8b'
+];
+
+// ─── State ──────────────────────────────────────────────────────────────────
+let slots      = ['Opción 1','Opción 2','Opción 3','Opción 4','Opción 5','Opción 6'];
+let wheelAngle = 0;   // cumulative degrees (clockwise)
+let spinning   = false;
+
+const canvas = document.getElementById('wheelCanvas');
+const ctx    = canvas.getContext('2d');
+
+// ─── Draw ────────────────────────────────────────────────────────────────────
+function drawWheel(deg) {
+  const angle = (deg !== undefined) ? deg : wheelAngle;
+  const n     = slots.length;
+  const R     = canvas.width / 2;
+  const cx = R, cy = R;
+  const slice = (2 * Math.PI) / n;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Subtle outer ring
+  const ring = ctx.createRadialGradient(cx, cy, R * 0.87, cx, cy, R);
+  ring.addColorStop(0, 'rgba(255,215,0,0)');
+  ring.addColorStop(1, 'rgba(255,215,0,0.14)');
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+  ctx.fillStyle = ring; ctx.fill();
+
+  for (let i = 0; i < n; i++) {
+    const a0 = angle * Math.PI / 180 + i * slice - Math.PI / 2;
+    const a1 = a0 + slice;
+    const mid = a0 + slice / 2;
+    const color = COLORS[i % COLORS.length];
+
+    // Fill
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, R - 3, a0, a1);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // Divider lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Text
+    ctx.save();
+    const tr = R * 0.63;
+    ctx.translate(cx + tr * Math.cos(mid), cy + tr * Math.sin(mid));
+    ctx.rotate(mid + Math.PI / 2);
+
+    const raw  = slots[i] || '';
+    const maxC = Math.max(5, Math.floor(14 - n * 0.35));
+    const txt  = raw.length > maxC ? raw.slice(0, maxC - 1) + '…' : raw;
+    const fs   = Math.max(8, Math.min(14, (R * 0.85) / Math.max(txt.length, 4)));
+
+    ctx.font = `700 ${fs}px 'Nunito',sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor  = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur   = 5;
+
+    ctx.fillStyle = '#fff';
+    ctx.fillText(txt, 0, 0);
+    ctx.restore();
+  }
+
+  // Center circle
+  const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 20);
+  cg.addColorStop(0, '#ffffff');
+  cg.addColorStop(0.45, '#ffd700');
+  cg.addColorStop(1, '#ff6b35');
+  ctx.beginPath(); ctx.arc(cx, cy, 20, 0, 2 * Math.PI);
+  ctx.fillStyle = cg; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = 2; ctx.stroke();
+}
+
+// ─── Determine which slot is under the pointer after given rotation ──────────
+function slotAtPointer(deg) {
+  const n        = slots.length;
+  const slotSize = 360 / n;
+  const norm     = ((-(deg % 360)) + 360) % 360;   // [0, 360)
+  return Math.floor(norm / slotSize) % n;
+}
+
+// ─── Spin ────────────────────────────────────────────────────────────────────
+function spinWheel() {
+  if (spinning) return;
+
+  const n = slots.length;
+  if (n < 2) return;
+
+  spinning = true;
+  document.getElementById('spinBtn').disabled = true;
+  document.getElementById('resultBanner').textContent = '';
+
+  // Valid winners (exclude index 2 = position 3) - LÓGICA OCULTA MANTENIDA
+  const valid = [];
+  for (let i = 0; i < n; i++) if (i !== 2) valid.push(i);
+  if (!valid.length) valid.push(0);   // safety fallback
+
+  const winner   = valid[Math.floor(Math.random() * valid.length)];
+  const slotSize = 360 / n;
+
+  const nudge       = (Math.random() - 0.5) * slotSize * 0.75;
+  const normTarget  = winner * slotSize + slotSize / 2 + nudge;
+
+  const modNeeded   = ((360 - normTarget) % 360 + 360) % 360;
+  const currentMod  = ((wheelAngle % 360) + 360) % 360;
+  let   delta       = (modNeeded - currentMod + 360) % 360;
+  if (delta < 30) delta += 360;
+
+  const fullSpins   = (5 + Math.floor(Math.random() * 5)) * 360;
+  const startAngle  = wheelAngle;
+  const targetAngle = wheelAngle + fullSpins + delta;
+
+  const duration  = 4000 + Math.random() * 2000;
+  const startTime = performance.now();
+
+  function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+
+  function frame(now) {
+    const t = Math.min((now - startTime) / duration, 1);
+    const a = startAngle + (targetAngle - startAngle) * easeOutQuart(t);
+    drawWheel(a);
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      wheelAngle = targetAngle;
+      drawWheel(targetAngle);
+      spinning = false;
+      document.getElementById('spinBtn').disabled = false;
+
+      const w    = slotAtPointer(targetAngle);
+      const name = (slots[w] || '').trim() || ('Espacio ' + (w + 1));
+      document.getElementById('resultBanner').innerHTML =
+        `🎉 &nbsp;<strong style="color:var(--gold)">${name}</strong>`;
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// ─── Slot management ─────────────────────────────────────────────────────────
+function renderSlots() {
+  const list = document.getElementById('slotsList');
+  list.innerHTML = '';
+
+  slots.forEach((txt, i) => {
+    const row = document.createElement('div');
+    row.className = 'slot-row';
+
+    const num = document.createElement('span');
+    num.className = 'slot-num';
+    num.textContent = (i + 1) + '.';
+
+    const dot = document.createElement('div');
+    dot.className = 'color-dot';
+    dot.style.background = COLORS[i % COLORS.length];
+
+    const inp = document.createElement('input');
+    inp.type      = 'text';
+    inp.className = 'slot-input'; // Se eliminó la clase .banned
+    inp.value     = txt;
+    inp.placeholder = 'Texto del espacio…';
+    inp.addEventListener('input', e => { slots[i] = e.target.value; drawWheel(); });
+
+    row.appendChild(num);
+    row.appendChild(dot);
+    row.appendChild(inp);
+
+    // Se eliminó la creación y renderizado de la etiqueta "🚫 BLOQ"
+
+    list.appendChild(row);
+  });
+
+  document.getElementById('countNum').textContent = slots.length;
+  document.getElementById('subBtn').disabled = slots.length <= 2;
+  document.getElementById('addBtn').disabled = slots.length >= 20;
+}
+
+function addSlot() {
+  if (slots.length >= 20 || spinning) return;
+  slots.push('Opción ' + (slots.length + 1));
+  renderSlots();
+  drawWheel();
+}
+
+function removeSlot() {
+  if (slots.length <= 2 || spinning) return;
+  slots.pop();
+  renderSlots();
+  drawWheel();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+renderSlots();
+drawWheel();
+</script>
+</body>
+</html>
